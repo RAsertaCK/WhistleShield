@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhistleShield — Komunikasi Aman</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <link href="{{ url_for('static', filename='css/bootstrap.min.css', v=static_version) }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/darkpan.css', v=static_version) }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css', v=static_version) }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid position-relative d-flex p-0">
+        <div class="sidebar pe-4 pb-3">
+            <nav class="navbar bg-secondary navbar-dark">
+                <a href="/" class="navbar-brand mx-4 mb-3">
+                    <h3 class="text-primary"><i class="fa fa-user-shield me-2"></i>WhistleShield</h3>
+                </a>
+                <div class="d-flex align-items-center ms-4 mb-4">
+                    <div class="position-relative">
+                        <div class="rounded-circle bg-primary text-black d-flex align-items-center justify-content-center" style="width:40px; height:40px; font-size:18px;">A</div>
+                    </div>
+                    <div class="ms-3 text-light">
+                        <h6 class="mb-0">Admin Receiver</h6>
+                        <span class="text-muted">Anonim Sender</span>
+                    </div>
+                </div>
+                <div class="navbar-nav w-100">
+                    <a href="#sec-landing" id="nav-whoami" class="nav-item nav-link active" onclick="navigateTab(event, 'sec-landing', 'nav-whoami')"><i class="fa fa-question-circle me-2"></i>Who Are You?</a>
+                    <a href="#sec-receiver-wait" id="nav-panel-admin" class="nav-item nav-link" onclick="navigateTab(event, 'sec-receiver-wait', 'nav-panel-admin')"><i class="fa fa-user-shield me-2"></i>Admin Receiver</a>
+                    <a href="#sec-sender-setup" id="nav-anonim-sender" class="nav-item nav-link" onclick="navigateTab(event, 'sec-sender-setup', 'nav-anonim-sender')"><i class="fa fa-user-secret me-2"></i>Anonim Sender</a>
+                <a href="#sec-extractor" id="nav-extractor" class="nav-item nav-link" onclick="navigateTab(event, 'sec-extractor', 'nav-extractor')"><i class="fa fa-file-import me-2"></i>Extractor</a>
+                </div>
+            </nav>
+        </div>
+
+        <div class="content">
+            <nav class="navbar navbar-expand bg-secondary navbar-dark sticky-top px-4 py-3">
+                <a href="/" class="navbar-brand d-flex d-lg-none me-4">
+                    <h2 class="text-primary mb-0"><i class="fa fa-user-shield"></i></h2>
+                </a>
+            </nav>
+
+            <div class="container-fluid pt-4 px-4">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="bg-secondary text-white rounded p-4 mb-4">
+                            <div class="d-flex align-items-center justify-content-between flex-column flex-md-row gap-3">
+                                <div>
+                                    <h5 class="text-primary mb-2">WhistleShield Secure Channel</h5>
+                                    <p class="mb-0 text-light">Aplikasi ini mendukung pengirim anonim dan penerima dengan peran admin. Semua pesan terenkripsi end-to-end dan disembunyikan dalam foto.</p>
+                                </div>
+                                <span class="badge bg-primary py-2 px-3">Anonim + Admin</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container-fluid pt-2 px-4">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="app-wrap">
+
+  <div id="sec-landing" class="section active">
+    <div class="card">
+      <div class="card-title">Anda siapa?</div>
+      <div class="info-box">
+        Sistem ini menggunakan <strong>enkripsi RSA-2048 OAEP end-to-end</strong> + steganografi DCT.
+        Pilih peran Anda untuk memulai. Private key <strong>tidak pernah meninggalkan browser</strong> Anda.
+      </div>
+      <div class="role-grid">
+        <div class="role-card receiver" onclick="chooseRole('receiver')">
+          <img src="{{ url_for('static', filename='Receiver.png', v=static_version) }}" alt="Receiver" class="role-icon-img" style="width: 64px; height: 64px; margin-bottom: 12px;">
+          <h2>Penerima (Admin)</h2>
+          <p>Admin akan membuka room, menerima laporan, dan membaca pesan rahasia dari whistleblower.</p>
+        </div>
+        <div class="role-card" onclick="chooseRole('sender')">
+          <img src="{{ url_for('static', filename='sender.png', v=static_version) }}" alt="Sender" class="role-icon-img" style="width: 64px; height: 64px; margin-bottom: 12px;">
+          <h2>Pengirim (Anonim)</h2>
+          <p>Whistleblower atau pelapor anonim. Masukkan Room ID penerima dan kirim pesan tersembunyi dalam foto.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sec-receiver-setup" class="section">
+    <div class="card">
+      <div class="card-title">🎯 Menyiapkan Room Anda</div>
+      <div class="info-box">
+        Sistem sedang membangkitkan pasangan kunci RSA-2048 <strong>di browser Anda</strong>.
+        Kunci privat <strong>tidak akan dikirim ke mana pun</strong> — hanya tersimpan di sesi browser ini.
+      </div>
+      <div class="status info show" id="receiver-setup-status">
+        <div class="spinner"></div><span>Membangkitkan kunci RSA-2048 OAEP...</span>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="showSection('sec-landing')">↩️ Kembali</button>
+    </div>
+  </div>
+
+  <div id="sec-receiver-wait" class="section">
+    <div class="card">
+      <div class="card-title">🎯 Room Aktif — Bagikan ke Pengirim</div>
+
+      <div class="room-id-box">
+        <div class="room-id-label">Room ID Anda</div>
+        <div class="room-id-value" id="display-room-id">——</div>
+        <div class="room-id-url">
+          Link langsung: <a id="display-share-url" href="#" target="_blank"></a>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-bottom: 18px; gap:8px;">
+        <button class="btn btn-primary btn-sm" id="btn-copy-room" onclick="copyRoomId()">📋 Salin Room ID</button>
+        <button class="btn btn-outline btn-sm" id="btn-copy-url" onclick="copyShareUrl()">🔗 Salin Link</button>
+        <button class="btn btn-outline btn-sm" onclick="showSection('sec-landing')">↩️ Kembali</button>
+        <button class="btn btn-outline btn-sm" id="btn-download-stego-receiver" onclick="receiverDownloadStego()" style="display:none;">📥 Unduh Stego</button>
+        <button class="btn btn-outline btn-sm" onclick="navigateTab(event, 'sec-extractor', 'nav-extractor')">🛠️ Buka Extractor</button>
+      </div>
+
+      <div class="info-box">
+        <strong>Cara kerja:</strong> Bagikan Room ID atau link di atas ke pengirim lewat saluran apapun.
+        Pengirim akan menggunakan Room ID ini untuk mengirim pesan. Halaman ini otomatis mendeteksi pesan baru.
+      </div>
+
+      <div class="pulse-ring">📡</div>
+      <div class="status info show" id="receiver-wait-status">
+        <div class="spinner"></div><span>Menunggu pesan dari pengirim...</span>
+      </div>
+
+      <div class="progress-bar" id="receiver-progress-bar">
+        <div class="progress-fill" id="receiver-progress-fill"></div>
+      </div>
+
+      <canvas id="receiver-stego-canvas" style="display:none; margin-top: 12px;"></canvas>
+    </div>
+  </div>
+
+  <div id="sec-extractor" class="section">
+    <div class="card">
+      <div class="card-title">🛠️ Extractor — Ekstrak & Dekripsi Manual</div>
+      <div class="info-box">Jika Anda sudah mengunduh file stego dari pengirim, unggah file PNG di sini untuk mengekstrak dan mendekripsi pesannya menggunakan kunci privat di browser Anda.</div>
+
+      <label>Unggah file stego (PNG)</label>
+      <div class="upload-zone">
+        <input type="file" accept="image/png" onchange="extractorUploadAndExtract(event)">
+        <div class="uz-icon">📥</div>
+        <p id="extractor-zone-label">Pilih file PNG stego yang sudah Anda unduh</p>
+      </div>
+
+      <div class="status" id="extractor-status"></div>
+      <div class="progress-bar" id="extractor-progress-bar" style="display:none">
+        <div class="progress-fill" id="extractor-progress-fill"></div>
+      </div>
+
+      <canvas id="extractor-stego-canvas" style="display:none; margin-top:12px;"></canvas>
+
+      <div class="card-title" style="margin-top:12px">Hasil Dekripsi</div>
+      <div class="code-box" id="extractor-decrypted" style="min-height:80px; font-size:15px;"></div>
+
+      <div class="btn-row" style="margin-top:12px; gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="showSection('sec-receiver-wait')">↩️ Kembali</button>
+        <button class="btn btn-outline btn-sm" onclick="copyToClipboard(document.getElementById('extractor-decrypted').textContent, this)">📋 Salin Pesan</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sec-receiver-result" class="section">
+    <div class="card">
+      <div class="card-title">📨 Pesan Terdekripsi</div>
+      <div class="info-box">
+        Pesan berhasil diekstrak dari citra stego dan didekripsi menggunakan kunci privat Anda.
+        Citra stego telah <strong>dihapus dari server</strong> setelah dibaca.
+      </div>
+      <div class="code-box" id="decrypted-message" style="font-size:15px; min-height:80px;"></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="goHome()">↩️ Kembali</button>
+        <button class="btn btn-outline btn-sm" onclick="copyToClipboard(document.getElementById('decrypted-message').textContent, this)">📋 Salin Pesan</button>
+        <button class="btn btn-primary btn-sm" onclick="receiverWaitAgain()">📡 Tunggu Pesan Berikutnya</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sec-sender-setup" class="section">
+    <div class="card">
+      <div class="card-title">📢 Masukkan Room ID Penerima</div>
+      <div class="info-box">
+        Minta Room ID dari penerima. Sistem akan mengambil kunci publik penerima dari server secara otomatis.
+      </div>
+      <label for="sender-room-input">Room ID (8 karakter)</label>
+      <input type="text" id="sender-room-input" placeholder="Contoh: AB12CD34"
+        maxlength="8" style="text-transform:uppercase; letter-spacing:4px; font-size:20px; text-align:center;"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter') senderLoadRoom()">
+      <div class="status" id="sender-setup-status"></div>
+      <button class="btn btn-blue" onclick="senderLoadRoom()">🔗 Hubungkan ke Room</button>
+      <button class="btn btn-outline btn-sm" onclick="showSection('sec-landing')">↩️ Kembali</button>
+    </div>
+  </div>
+
+  <div id="sec-sender-compose" class="section">
+    <div class="card">
+      <div class="card-title">📢 Kirim Pesan Rahasia</div>
+      <div class="info-box">
+        Terhubung ke room <strong id="sender-room-display">——</strong>.
+        Pesan Anda akan dienkripsi RSA-2048 OAEP lalu disembunyikan dalam foto menggunakan steganografi DCT.
+      </div>
+
+      <label for="sender-message">✉️ Pesan Rahasia</label>
+      <textarea id="sender-message"
+        placeholder="Tulis pesan rahasia di sini...&#10;&#10;Maks 190 karakter UTF-8 untuk RSA-2048 OAEP."
+        oninput="document.getElementById('msg-counter').textContent=this.value.length+'/190'"></textarea>
+      <small id="msg-counter" style="color:var(--text3);font-size:11px;font-family:'JetBrains Mono',monospace;">0/190</small>
+
+      <hr>
+
+      <label style="margin-top:10px;">🖼️ Foto Cover</label>
+      <div class="upload-zone">
+        <input type="file" accept="image/*" onchange="senderLoadCover(event)">
+        <div class="uz-icon">🖼️</div>
+        <p id="cover-zone-label">Klik atau seret foto ke sini</p>
+        <small>Meme receh/foto bebas, format otomatis disesuaikan</small>
+      </div>
+
+      <div class="preview-wrap" id="cover-preview-wrap" style="display:none">
+        <div class="preview-item">
+          <label>Foto Cover (asli)</label>
+          <canvas id="cover-canvas"></canvas>
+        </div>
+        <div class="preview-item">
+          <label>Foto Stego (hasil)</label>
+          <canvas id="stego-canvas" style="opacity:.4;"></canvas>
+        </div>
+      </div>
+
+      <div class="progress-bar" id="sender-progress-bar">
+        <div class="progress-fill" id="sender-progress-fill"></div>
+      </div>
+
+      <div class="status" id="sender-compose-status"></div>
+
+      <button class="btn btn-primary" id="btn-send" onclick="senderSendMessage()">
+        🔒 Enkripsi &amp; Kirim
+      </button>
+      <div class="btn-row" style="margin-top:10px; gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="senderBackToRoom()">↩️ Ubah Room ID</button>
+        <button class="btn btn-outline btn-sm" id="btn-download-stego" onclick="downloadStegoImage()" style="display:none;">📥 Unduh Stego PNG</button>
+        <button class="btn btn-outline btn-sm" id="btn-send-again" onclick="senderResetForm()" style="display:none;">🔄 Kirim Pesan Lain</button>
+      </div>
+
+      <div id="sender-metrics" style="display:none;">
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <span class="metric-label">PSNR</span>
+            <span class="metric-value" id="m-psnr">—</span>
+            <span class="metric-unit">dB</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">MSE</span>
+            <span class="metric-value" id="m-mse">—</span>
+            <span class="metric-unit">avg</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Kualitas</span>
+            <span class="metric-value" id="m-qual" style="font-size:13px;">—</span>
+            <span class="metric-unit"></span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Bits</span>
+            <span class="metric-value" id="m-bits" style="font-size:13px;">—</span>
+            <span class="metric-unit">dipakai</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+      <div class="app-wrap">
+        <span>WhistleShield</span> · RSA-2048 OAEP + DCT Steganografi · Private key tidak pernah meninggalkan browser · <span>End-to-End Encrypted</span>
+      </div>
+    </footer>
+
+<script src="{{ url_for('static', filename='js/crypto.js', v=static_version) }}"></script>
+<script src="{{ url_for('static', filename='js/app.js', v=static_version) }}"></script>
+</body>
+</html>
