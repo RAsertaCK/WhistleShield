@@ -67,7 +67,17 @@ const DCTEngine = (() => {
   const BLOCK     = 8;
   const EMBED_ROW = 3;
   const EMBED_COL = 4;
-  const ALPHA     = 10;
+
+  // FIX: ALPHA dinaikkan dari 10 ke 36.
+  // ALPHA=10 rentan bit-flip akibat rounding error saat canvas round-trip (toBlob -> re-load).
+  // ALPHA=36 memberikan margin kuantisasi lebih besar sehingga noise ±1-2 LSB dari
+  // premultiplied-alpha / color-space-conversion tidak mengubah parity bit.
+  // PSNR tetap baik untuk stego PNG, sementara embedded bit menjadi lebih stabil.
+  const ALPHA     = 36;
+
+  // RSA-2048 OAEP-SHA256 selalu menghasilkan ciphertext tepat 256 byte.
+  // Digunakan untuk validasi header agar tidak salah baca junk sebagai ukuran valid.
+  const RSA_CIPHER_BYTES = 256;
 
   function dct1d(x) {
     const N = x.length, out = new Float64Array(N);
@@ -113,28 +123,79 @@ const DCTEngine = (() => {
     return out;
   }
 
+  // FIX: getYBlock sekarang flatten alpha channel ke latar putih sebelum hitung Y.
+  //
+  // KENAPA INI KRITIS:
+  // Canvas 2D selalu menyimpan pixel dalam premultiplied-alpha:
+  //   R_stored = round(R_original * alpha / 255)
+  // Saat toBlob("image/png") -> PNG menyimpan nilai UN-premultiplied (asli).
+  // Saat load ulang (img.onload -> drawImage) -> browser RE-premultiply.
+  // Jika alpha != 255, round-trip error bisa mengubah R/G/B ±1-2,
+  // yang cukup untuk flip parity bit DCT dengan ALPHA kecil.
+  //
+  // Dengan flatten ke putih (alpha compositing atas background #ffffff):
+  //   R_flat = R_stored + (255 - alpha)   [karena R_stored sudah premultiplied]
+  // Kita bekerja di ruang warna yang stabil dan konsisten, tidak peduli alpha asli.
   function getYBlock(imgData, bx, by) {
     const W     = imgData.width;
     const block = Array.from({length: BLOCK}, () => new Float64Array(BLOCK));
     for (let r = 0; r < BLOCK; r++) {
       for (let c = 0; c < BLOCK; c++) {
-        const idx   = ((by*BLOCK+r)*W + (bx*BLOCK+c)) * 4;
-        const R = imgData.data[idx], G = imgData.data[idx+1], B = imgData.data[idx+2];
-        block[r][c] = 0.299*R + 0.587*G + 0.114*B - 128;
+        const idx = ((by*BLOCK+r)*W + (bx*BLOCK+c)) * 4;
+        const a   = imgData.data[idx+3];
+
+        // Flatten alpha ke latar putih (255,255,255)
+        // imgData.data sudah premultiplied di canvas, jadi:
+        // R_flat = R_premul + (255 - a)
+        let Rf, Gf, Bf;
+        if (a === 255) {
+          // Paling umum: fully opaque, tidak perlu flatten
+          Rf = imgData.data[idx];
+          Gf = imgData.data[idx+1];
+          Bf = imgData.data[idx+2];
+        } else if (a === 0) {
+          // Fully transparent -> putih
+          Rf = Gf = Bf = 255;
+        } else {
+          // Composite ke putih: C_out = C_premul + (255 - a)
+          // (karena C_premul = C_orig * a/255, dan putih contribution = 255 * (1 - a/255))
+          Rf = Math.min(255, imgData.data[idx]   + (255 - a));
+          Gf = Math.min(255, imgData.data[idx+1] + (255 - a));
+          Bf = Math.min(255, imgData.data[idx+2] + (255 - a));
+        }
+
+        block[r][c] = 0.299*Rf + 0.587*Gf + 0.114*Bf - 128;
       }
     }
     return block;
   }
 
+  // FIX: setYBlock juga paksa alpha = 255 pada semua pixel yang dimodifikasi.
+  // Ini memastikan output stegoData selalu fully opaque,
+  // sehingga toBlob -> load ulang tidak punya premultiplied-alpha problem.
   function setYBlock(stegoData, bx, by, origBlock, newBlock) {
     const W = stegoData.width;
     for (let r = 0; r < BLOCK; r++) {
       for (let c = 0; c < BLOCK; c++) {
         const idx   = ((by*BLOCK+r)*W + (bx*BLOCK+c)) * 4;
         const delta = Math.round(newBlock[r][c]) - Math.round(origBlock[r][c]);
-        stegoData.data[idx]   = Math.max(0, Math.min(255, stegoData.data[idx]   + delta));
-        stegoData.data[idx+1] = Math.max(0, Math.min(255, stegoData.data[idx+1] + delta));
-        stegoData.data[idx+2] = Math.max(0, Math.min(255, stegoData.data[idx+2] + delta));
+        const a     = stegoData.data[idx+3];
+
+        if (a === 255) {
+          // Normal path — langsung terapkan delta
+          stegoData.data[idx]   = Math.max(0, Math.min(255, stegoData.data[idx]   + delta));
+          stegoData.data[idx+1] = Math.max(0, Math.min(255, stegoData.data[idx+1] + delta));
+          stegoData.data[idx+2] = Math.max(0, Math.min(255, stegoData.data[idx+2] + delta));
+        } else {
+          // Pixel semi-transparan: flatten dulu ke putih, terapkan delta, paksa alpha=255
+          const Rf = Math.min(255, stegoData.data[idx]   + (255 - a));
+          const Gf = Math.min(255, stegoData.data[idx+1] + (255 - a));
+          const Bf = Math.min(255, stegoData.data[idx+2] + (255 - a));
+          stegoData.data[idx]   = Math.max(0, Math.min(255, Rf + delta));
+          stegoData.data[idx+1] = Math.max(0, Math.min(255, Gf + delta));
+          stegoData.data[idx+2] = Math.max(0, Math.min(255, Bf + delta));
+          stegoData.data[idx+3] = 255; // paksa opaque
+        }
       }
     }
   }
@@ -162,6 +223,37 @@ const DCTEngine = (() => {
     return { blocks, usableBits: usable, usableBytes: Math.floor(usable/8) };
   }
 
+  // FIX: embedAll juga flatten alpha semua pixel sebelum embed,
+  // agar stegoData yang dihasilkan fully opaque dari awal.
+  function _flattenAlpha(coverData) {
+    const W = coverData.width, H = coverData.height;
+    const flat = new ImageData(new Uint8ClampedArray(coverData.data), W, H);
+    for (let i = 0; i < W * H; i++) {
+      const base = i * 4;
+      const a    = flat.data[base+3];
+      if (a !== 255) {
+        flat.data[base]   = Math.min(255, flat.data[base]   + (255 - a));
+        flat.data[base+1] = Math.min(255, flat.data[base+1] + (255 - a));
+        flat.data[base+2] = Math.min(255, flat.data[base+2] + (255 - a));
+        flat.data[base+3] = 255;
+      }
+    }
+    return flat;
+  }
+
+  function _restoreBlock(stegoData, coverData, bx, by) {
+    const W = stegoData.width;
+    for (let r = 0; r < BLOCK; r++) {
+      for (let c = 0; c < BLOCK; c++) {
+        const idx = ((by*BLOCK+r)*W + (bx*BLOCK+c)) * 4;
+        stegoData.data[idx]   = coverData.data[idx];
+        stegoData.data[idx+1] = coverData.data[idx+1];
+        stegoData.data[idx+2] = coverData.data[idx+2];
+        stegoData.data[idx+3] = coverData.data[idx+3];
+      }
+    }
+  }
+
   function embedAll(coverData, bits, onProgress) {
     const W       = coverData.width, H = coverData.height;
     const blocksX = Math.floor(W/BLOCK);
@@ -170,15 +262,38 @@ const DCTEngine = (() => {
     if (bits.length > totalBlocks)
       throw new Error(`Kapasitas tidak cukup: butuh ${bits.length} bit, tersedia ${totalBlocks} bit.`);
 
-    const stegoData = new ImageData(new Uint8ClampedArray(coverData.data), W, H);
+    // FIX: flatten alpha dulu sebelum embed, agar konsisten saat extract
+    const flatCover = _flattenAlpha(coverData);
+    const stegoData = new ImageData(new Uint8ClampedArray(flatCover.data), W, H);
 
     for (let b = 0; b < bits.length; b++) {
       const bx = b % blocksX, by = Math.floor(b / blocksX);
-      const orig = getYBlock(coverData, bx, by);
+      const orig = getYBlock(flatCover, bx, by);
       const dct  = dct2d(orig);
       embedBit(dct, bits[b]);
-      const idct = idct2d(dct);
-      setYBlock(stegoData, bx, by, orig, idct);
+
+      let success = false;
+      let attempt = 0;
+      while (attempt < 3 && !success) {
+        const idct = idct2d(dct);
+        setYBlock(stegoData, bx, by, orig, idct);
+        const actual = extractBit(dct2d(getYBlock(stegoData, bx, by)));
+        if (actual === bits[b]) {
+          success = true;
+          break;
+        }
+
+        if (attempt < 2) {
+          console.warn("[WhistleShield] embed retry: block unstable, increasing margin", { bx, by, bit: bits[b], attempt });
+          _restoreBlock(stegoData, flatCover, bx, by);
+          dct[EMBED_ROW][EMBED_COL] += bits[b] === 1 ? ALPHA : -ALPHA;
+        }
+        attempt++;
+      }
+
+      if (!success)
+        throw new Error(`Gagal menyisipkan data stabil pada block (${bx},${by}). Coba gunakan gambar lain atau ukuran lebih besar.`);
+
       if (b % 400 === 0 && onProgress) onProgress(b / bits.length * 100);
     }
     if (onProgress) onProgress(100);
@@ -216,7 +331,8 @@ const DCTEngine = (() => {
     return bytes;
   }
 
-  return { embedAll, extractAll, bytesToBits, bitsToBytes, capacity, BLOCK };
+  // Expose RSA_CIPHER_BYTES untuk validasi header di app.js
+  return { embedAll, extractAll, bytesToBits, bitsToBytes, capacity, BLOCK, RSA_CIPHER_BYTES };
 })();
 
 const QualityMetrics = (() => {

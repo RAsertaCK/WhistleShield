@@ -4,7 +4,7 @@ import uuid
 import time
 import threading
 from pathlib import Path
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, send_from_directory, render_template
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
@@ -129,6 +129,12 @@ def index():
 @app.route("/room/<room_id>")
 def room_page(room_id):
     return render_template("index.html", static_version=STATIC_VERSION)
+
+@app.route("/Icon/<path:filename>")
+def serve_icon(filename):
+    """Serve gambar dari folder Icon/ di root project."""
+    icon_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Icon")
+    return send_from_directory(icon_dir, filename)
 
 # ══════════════════════════════════════════════════
 # API

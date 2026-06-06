@@ -62,6 +62,29 @@ body::before {
 .role-card.receiver { border-color: rgba(0,152,209,.3); }
 .role-card.receiver:hover { border-color: var(--blue); background: rgba(9,132,227,.05); }
 
+/* Label untuk preview canvas (bukan form field, jadi pakai p bukan label) */
+.preview-label {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.role-card-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 14px;
+  /* mix-blend-mode: screen membuat pixel hitam jadi transparan di dark background */
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 8px rgba(235, 100, 50, 0.35));
+  transition: filter .2s, transform .2s;
+}
+.role-card:hover .role-card-img {
+  filter: drop-shadow(0 0 14px rgba(235, 100, 50, 0.6));
+  transform: scale(1.06);
+}
+
 .info-box { background: rgba(9,132,227,.08); border: 1px solid rgba(9,132,227,.2); border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #74b9ff; margin-bottom: 18px; line-height: 1.6; }
 .info-box strong { color: #a9d4ff; }
 
@@ -149,28 +172,77 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 /* ── RESPONSIVE MEDIA QUERIES (MOBILE FIX) ── */
 .upload-zone { min-height: 180px; }
 
+/* Canvas selalu responsif — tidak overflow container */
+canvas {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* btn-row selalu wrap dengan gap konsisten */
+.btn-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* preview-wrap: side by side di desktop, stack di mobile */
+.preview-wrap {
+  display: flex;
+  gap: 14px;
+}
+.preview-item {
+  flex: 1 1 180px;
+  min-width: 0;       /* cegah overflow */
+}
+
+/* card-title jangan overflow di mobile */
+.card-title {
+  word-break: break-word;
+}
+
+/* Pastikan semua input/textarea tidak overflow */
+input[type="text"], textarea, .code-box {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-all;
+}
+
+@media (max-width: 991.98px) {
+  /* Pada mobile sidebar menjadi overlay — content ambil full lebar */
+  .content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
 @media (max-width: 900px) {
   .app-wrap { padding: 0 16px 50px; }
-  .card { padding: 24px; }
+  .card { padding: 20px; }
   .role-grid { grid-template-columns: 1fr; }
-  .btn-row { flex-direction: column; align-items: stretch; }
+  .btn-row { flex-direction: row; align-items: flex-start; }
+  .btn-row .btn { flex: 1 1 auto; text-align: center; justify-content: center; }
   .preview-wrap { flex-direction: column; }
+  .preview-item { min-width: 100%; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .room-id-value { font-size: 30px; letter-spacing: 5px; }
+  .room-id-value { font-size: 28px; letter-spacing: 4px; }
 }
 
 @media (max-width: 600px) {
-  .app-wrap { padding: 0 14px 40px; }
+  .app-wrap { padding: 0 12px 40px; }
   .site-header { flex-direction: column; gap: 12px; text-align: center; align-items: center; }
   .role-grid { grid-template-columns: 1fr; }
-  .room-id-value { font-size: 26px; letter-spacing: 4px; }
+  .room-id-value { font-size: 22px; letter-spacing: 3px; }
   .preview-wrap { flex-direction: column; }
   .preview-item { min-width: 100%; }
-  .metrics-grid { grid-template-columns: 1fr; gap: 10px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .btn-row { flex-direction: column; align-items: stretch; }
+  .btn-row .btn { width: 100%; justify-content: center; }
   textarea { min-height: 120px; font-size: 14px; }
-  .card { padding: 20px; }
-  .site-footer { font-size: 12px; }
+  .card { padding: 16px; }
+  .site-footer { font-size: 11px; }
+  .room-id-box { padding: 14px; }
+  .info-box { font-size: 12px; padding: 10px 12px; }
+  /* Sidebar toggler — lebih mudah ditekan di HP */
+  .sidebar-toggler { min-width: 40px; min-height: 40px; }
 }
 
 /* Darkpan theme overrides */
@@ -263,7 +335,4 @@ canvas {
   color: var(--primary);
 }
 
-@media (max-width: 900px) {
-  .content { margin-left: 0; }
-  .sidebar { position: relative; width: 100%; height: auto; }
-}
+/* darkpan responsive — handled by media queries above */
